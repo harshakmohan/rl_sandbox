@@ -1,200 +1,151 @@
-# Educational RL Framework - CartPole Swing-Up
+# RL Research Framework
 
-This repository is a **clean, minimal framework for learning reinforcement learning (RL)** through hands-on implementation and experimentation.
-
-The goal is to provide a solid foundation for **implementing RL algorithms from scratch**, understanding how they work, and experimenting with different approaches on control problems.
-
-It features a **CartPole swing-up environment** implemented in C++ using MuJoCo physics, with a modular architecture that makes it easy to add and compare different RL algorithms.
+A minimal, modular framework for RL research — implementing algorithms from scratch and running controlled experiments.
 
 ---
 
-## 🎯 Vision
+## Intent
 
-This project is designed for **deep RL learning and understanding**:
+This repo is built for two things:
 
-**Key Principles:**  
-- **Educational Focus**: Learn RL by implementing algorithms yourself
-- **Modular Design**: Easy to swap in new algorithms and compare them
-- **Minimal & Direct**: Clean interfaces without unnecessary complexity
-- **Hands-On Learning**: Understand RL through implementation, not just theory
-
-**Perfect for:** Students, researchers, and practitioners who want to understand RL algorithms deeply by building them from the ground up.
+1. **Algorithm implementation** — implement RL algorithms from scratch to build a deep understanding of how they work
+2. **Research** — run controlled experiments where agents, environments, and reward functions can be swapped independently to isolate the effect of each change
 
 ---
 
-## 🚀 Setup
+## Setup
 
-1. **Install dependencies:**
 ```bash
-brew install cmake glfw
+pip install -r requirements.txt
 ```
 
-2. **Install MuJoCo (macOS):**
-   - Download MuJoCo.app from: https://github.com/google-deepmind/mujoco/releases
-   - Install to `/Applications/MuJoCo.app`
+---
 
-3. **Build:**
+## Running an Experiment
+
 ```bash
-mkdir build && cd build
-cmake ..
-make
+cd experiments
+python train_reinforce.py
 ```
 
-## 🎮 Run
+View training metrics:
 
-- `./build/cartpole` - **Interactive control** (use arrow keys to swing up the pole manually)
-- `./build/test_env` - **Agent demonstration** (rule-based agent attempts swing-up)
-
-## 🧠 The Learning Environment
-
-**CartPole Swing-Up Task:**
-- **Challenge**: Swing a pole from hanging down to balanced upright
-- **State**: [cart_position, cart_velocity, pole_angle, pole_angular_velocity] 
-- **Action**: Continuous force applied to cart (-10 to +10 N)
-- **Reward**: `cos(pole_angle) + 1` (0 when hanging down, 2 when upright)
-- **Physics**: Realistic MuJoCo simulation
-
-This is a **much more challenging** problem than standard CartPole balancing, requiring energy pumping and careful control strategies.
-
----
-
-## 🏗️ Architecture
-
-The framework uses clean inheritance for modularity:
-
-```cpp
-// Base classes for modularity
-class Environment {
-    virtual State reset() = 0;
-    virtual StepResult step(Action action) = 0;
-    // ...
-};
-
-class Agent {
-    virtual Action act(const State& state) = 0;      // Policy
-    virtual void learn(const Experience& exp) = 0;   // Learning
-    // ...
-};
-
-// Implementations
-class CartPoleEnv : public Environment { /* ... */ };
-class RuleBasedAgent : public Agent { /* ... */ };
+```bash
+tensorboard --logdir experiments/runs/
 ```
 
-**Why this works for learning:**
-- **Easy to add new algorithms**: Just inherit from `Agent` and implement `act()` + `learn()`
-- **Easy to compare**: Same interface for all algorithms
-- **Educational clarity**: Separation between policy (act) and learning (learn) is explicit
-
 ---
 
-## 📚 Implementing Your First RL Algorithm
-
-Here's how you'd add a simple REINFORCE agent:
-
-```cpp
-class REINFORCEAgent : public Agent {
-private:
-    PolicyNetwork policy_;
-    std::vector<Experience> episode_buffer_;
-    double learning_rate_;
-
-public:
-    Action act(const State& state) override {
-        // Get action from policy network + exploration
-        return policy_.sample_action(state);
-    }
-    
-    void learn(const Experience& exp) override {
-        // Store experience
-        episode_buffer_.push_back(exp);
-        
-        // When episode ends, update policy
-        if (exp.done) {
-            update_policy_gradients();
-            episode_buffer_.clear();
-        }
-    }
-};
-
-// Use it the same way as any other agent:
-std::unique_ptr<Agent> agent = std::make_unique<REINFORCEAgent>(learning_rate);
-```
-
-**The beauty**: Once you implement the `Agent` interface, your algorithm works with any environment automatically!
-
----
-
-## 🎓 Learning Path
-
-**Suggested progression for learning RL:**
-
-1. **Understand the Problem**: 
-   - Run `./build/cartpole` and try to swing up the pole manually
-   - Observe how difficult it is - this motivates why we need RL!
-
-2. **Study the Rule-Based Agent**:
-   - Look at `src/agents/rule_based_agent.cpp` 
-   - See why simple rules fail at swing-up (energy pumping needed)
-
-3. **Implement Your First RL Algorithm**:
-   - Start with **REINFORCE** (policy gradient)
-   - Simple conceptually: increase probability of good actions
-   - Learn about policy networks, episode collection, gradient ascent
-
-4. **Add Complexity Gradually**:
-   - **Actor-Critic** methods (A2C, PPO)
-   - **Value-based** methods (DQN for discrete version)
-   - **Advanced** methods (SAC, TD3)
-
-5. **Experiment and Compare**:
-   - Compare learning curves between algorithms
-   - Try different hyperparameters, network architectures
-   - Understand why some algorithms work better than others
-
----
-
-## 📁 Codebase Structure
+## Structure
 
 ```
-src/main.cpp                 - Interactive manual control
-src/test_env.cpp             - Agent demonstration (shows polymorphism)
-src/cartpole_env.cpp         - CartPole environment implementation  
-src/agents/rule_based_agent.cpp - Simple baseline controller
+agents/
+    base.py              - Agent base class (act, learn interface)
+    reinforce.py         - REINFORCE (Monte Carlo policy gradient)
 
-include/environment.h        - Environment base class
-include/agent.h              - Agent base class  
-include/cartpole_env.h       - CartPole environment header
-include/rule_based_agent.h   - Rule-based agent header
+environments/
+    base.py              - Gymnasium environment wrapper
 
-mujoco/cartpole.xml          - Physics model definition
-CMakeLists.txt               - Build system
+utils/
+    networks.py          - PolicyNetwork and ValueNetwork (PyTorch)
+    trainer.py           - Shared training loop
+    logger.py            - Metrics tracking
+
+experiments/
+    train_reinforce.py   - REINFORCE on CartPole-v1
+
+notebooks/
+    01_getting_started   - Intro walkthrough
 ```
 
-**Total**: ~1,000 lines of clean, focused code (down from 9,000+ lines of over-engineered framework!)
+---
+
+## How Experiments Work
+
+Each experiment creates an env, agent, and trainer — then runs:
+
+```python
+env = GymEnv('CartPole-v1')
+
+agent = REINFORCEAgent(
+    state_dim=env.state_dim,
+    action_dim=env.action_dim,
+    learning_rate=1e-3,
+    gamma=0.99
+)
+
+trainer = Trainer(env, agent, log_dir="runs/reinforce")
+trainer.train(n_episodes=1000)
+```
+
+### Swapping components
+
+**Different agent** — instantiate a different agent class, everything else stays the same:
+
+```python
+agent = DQNAgent(state_dim=env.state_dim, action_dim=env.action_dim)
+trainer = Trainer(env, agent, log_dir="runs/dqn")
+```
+
+**Different environment** — pass a different env:
+
+```python
+env = GymEnv('MountainCar-v0')
+```
+
+**Custom reward function** — pass a `reward_fn` to override the environment reward without touching the agent or env:
+
+```python
+def shaped_reward(state, action, reward, next_state, done):
+    cart_pos = next_state[0]
+    return reward - 0.1 * abs(cart_pos)
+
+trainer = Trainer(env, agent, reward_fn=shaped_reward, log_dir="runs/reinforce_shaped")
+```
+
+Compare runs in TensorBoard by pointing it at the parent `runs/` directory.
 
 ---
 
-## 🔬 Why This Environment?
+## Adding a New Algorithm
 
-**CartPole Swing-Up** is perfect for learning RL because:
+Subclass `Agent` and implement `act()` and `learn()`:
 
-- **Non-trivial**: Requires actual learning (simple rules fail)
-- **Continuous control**: Most real-world problems are continuous
-- **Fast simulation**: Quick iteration for learning experiments  
-- **Intuitive**: You can visualize and understand what's happening
-- **Scalable complexity**: Easy problem to start, but deep optimization possible
+```python
+from agents.base import Agent
 
-**Educational Value**: You'll understand energy pumping, exploration vs exploitation, credit assignment, and policy optimization in a concrete, visual way.
+class MyAgent(Agent):
+    def act(self, state, training=True):
+        # return action given state
+        ...
+
+    def learn(self, state, action, reward, next_state, done):
+        # update policy/value estimates
+        # return dict of metrics to log (e.g. {'loss': 0.42})
+        ...
+```
+
+The `Trainer` handles the rest — episode loop, logging, TensorBoard writes.
 
 ---
 
-## 🚀 Ready to Start?
+## Environment
 
-1. **Get familiar**: Run the interactive and agent demos
-2. **Study the code**: Understand the Environment/Agent interfaces  
-3. **Implement REINFORCE**: Your first learning algorithm
-4. **Experiment**: Try different approaches and see what works
-5. **Compare**: Implement multiple algorithms and compare their learning
+**CartPole-v1** (Gymnasium) — the standard benchmark for discrete control:
 
-The framework is designed to make this journey smooth and educational. Happy learning! 🎓
+- **State**: [cart position, cart velocity, pole angle, pole angular velocity]
+- **Actions**: push left or push right
+- **Reward**: +1 per timestep the pole stays upright
+- **Episode ends**: pole angle > 12°, cart out of bounds, or 500 steps reached
+- **Solved**: mean return ≥ 475 over 100 consecutive episodes
+
+---
+
+## Algorithms
+
+| Algorithm | Status | Notes |
+|---|---|---|
+| REINFORCE | Implemented | Monte Carlo policy gradient, on-policy |
+| DQN | Planned | |
+| A2C | Planned | |
+| PPO | Planned | |
